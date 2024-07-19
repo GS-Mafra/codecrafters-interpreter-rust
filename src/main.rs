@@ -1,37 +1,34 @@
-use std::env;
-use std::fs;
-use std::io::{self, Write};
+use std::{fs, path::PathBuf};
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        writeln!(io::stderr(), "Usage: {} tokenize <filename>", args[0]).unwrap();
-        return;
-    }
+use anyhow::Context;
+use clap::{Parser, Subcommand};
+use interpreter_starter_rust::{Scanner, Token};
 
-    let command = &args[1];
-    let filename = &args[2];
+#[derive(Debug, Parser)]
+struct Args {
+    #[command(subcommand)]
+    command: Command,
+}
 
-    match command.as_str() {
-        "tokenize" => {
-            // You can use print statements as follows for debugging, they'll be visible when running tests.
-            writeln!(io::stderr(), "Logs from your program will appear here!").unwrap();
+#[derive(Debug, Subcommand)]
+enum Command {
+    Tokenize { filename: PathBuf },
+}
 
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-                String::new()
-            });
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    eprintln!("{args:#?}");
 
-            // Uncomment this block to pass the first stage
-            // if !file_contents.is_empty() {
-            //     panic!("Scanner not implemented");
-            // } else {
-            //     println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
-            // }
-        }
-        _ => {
-            writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
-            return;
+    match args.command {
+        Command::Tokenize { filename } => {
+            let file_contents = fs::read_to_string(&filename)
+                .with_context(|| format!("Failed to read file {filename:?}"))?;
+
+            for token in Scanner::new(&file_contents) {
+                println!("{token}");
+            }
+            println!("{}", Token::EOF);
         }
     }
+    Ok(())
 }
