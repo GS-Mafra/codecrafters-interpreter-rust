@@ -1,11 +1,27 @@
 use std::{iter::Peekable, str::Chars};
 
-use itertools::PeekingNext;
+use itertools::{Itertools, PeekingNext};
+use thiserror::Error;
 
 use crate::Token;
 
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("[line {line}] Error: Unexpected character: {c}")]
+    Lexical { line: usize, c: char },
+}
+
+impl Error {
+    #[inline]
+    pub(crate) const fn lexical(line: usize, c: char) -> Self {
+        Self::Lexical { line, c }
+    }
+}
+
 pub struct Scanner<'a> {
     input: Peekable<Chars<'a>>,
+    eof: bool,
+    line: usize,
 }
 
 impl<'a> Scanner<'a> {
@@ -13,17 +29,28 @@ impl<'a> Scanner<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
             input: input.chars().peekable(),
+            eof: false,
+            line: 1,
         }
     }
 }
 
 impl<'a> Iterator for Scanner<'a> {
-    type Item = Token<'a>;
+    type Item = Result<Token<'a>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.eof {
+            return None;
+        }
+
         while let Some(c) = self.input.next() {
             let token = match c {
-                c if c.is_ascii_whitespace() => continue,
+                '\t' | '\x0C' | '\r' | ' ' => continue,
+                '\n' => {
+                    self.line += 1;
+                    continue;
+                }
+
                 '(' => Token::LEFT_PAREN,
                 ')' => Token::RIGHT_PAREN,
                 '{' => Token::LEFT_BRACE,
@@ -33,30 +60,39 @@ impl<'a> Iterator for Scanner<'a> {
                 '+' => Token::PLUS,
                 '-' => Token::MINUS,
                 '*' => Token::STAR,
-                '/' => Token::SLASH,
                 '.' => Token::DOT,
 
+                '/' => {
+                    if self.input.peeking_next(|c| *c == '/').is_some() {
+                        self.input
+                            .peeking_take_while(|c| *c != '\n')
+                            .for_each(|_| ());
+                        continue;
+                    }
+                    Token::SLASH
+                }
                 '!' => self
                     .input
-                    .peeking_next(|x| *x == '=')
+                    .peeking_next(|c| *c == '=')
                     .map_or(Token::BANG, |_| Token::BANG_EQUAL),
                 '=' => self
                     .input
-                    .peeking_next(|x| *x == '=')
+                    .peeking_next(|c| *c == '=')
                     .map_or(Token::EQUAL, |_| Token::EQUAL_EQUAL),
                 '<' => self
                     .input
-                    .peeking_next(|x| *x == '=')
+                    .peeking_next(|c| *c == '=')
                     .map_or(Token::LESS, |_| Token::LESS_EQUAL),
                 '>' => self
                     .input
-                    .peeking_next(|x| *x == '=')
+                    .peeking_next(|c| *c == '=')
                     .map_or(Token::GREATER, |_| Token::GREATER_EQUAL),
-                _ => unimplemented!(),
+                c => return Some(Err(Error::lexical(self.line, c))),
             };
-            return Some(token);
+            return Some(Ok(token));
         }
-        None
+        self.eof = true;
+        Some(Ok(Token::EOF))
     }
 }
 
@@ -69,7 +105,7 @@ mod tests {
     fn punctuators() {
         let input = "(){};,+-*!!====<=>=!=<>/.";
         let mut scanner = Scanner::new(input);
-        let mut next_token = || scanner.next().unwrap();
+        let mut next_token = || scanner.next().unwrap().unwrap();
         assert_eq!(next_token(), Token::LEFT_PAREN);
         assert_eq!(next_token(), Token::RIGHT_PAREN);
         assert_eq!(next_token(), Token::LEFT_BRACE);
@@ -90,19 +126,24 @@ mod tests {
         assert_eq!(next_token(), Token::GREATER);
         assert_eq!(next_token(), Token::SLASH);
         assert_eq!(next_token(), Token::DOT);
+        assert_eq!(next_token(), Token::EOF);
         assert!(scanner.next().is_none());
     }
 
-    // TODO
     #[test]
     fn comment() {
         let input = "\
-        // (){};,+-*!!====<=>=!=<>/.\n\
-        ()";
+        // comment (){};,+-*!!====<=>=!=<>/.\n\
+        ()\n\
+        // comment\n\
+        // comment\n\
+        *";
         let mut scanner = Scanner::new(input);
-        let mut next_token = || scanner.next().unwrap();
+        let mut next_token = || scanner.next().unwrap().unwrap();
         assert_eq!(next_token(), Token::LEFT_PAREN);
         assert_eq!(next_token(), Token::RIGHT_PAREN);
+        assert_eq!(next_token(), Token::STAR);
+        assert_eq!(next_token(), Token::EOF);
         assert!(scanner.next().is_none());
     }
 }

@@ -1,8 +1,12 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    io::{stderr, stdout},
+    path::PathBuf,
+};
 
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use interpreter_starter_rust::{Scanner, Token};
+use interpreter_starter_rust::Tokenizer;
 
 #[derive(Debug, Parser)]
 struct Args {
@@ -24,11 +28,12 @@ fn main() -> anyhow::Result<()> {
             let file_contents = fs::read_to_string(&filename)
                 .with_context(|| format!("Failed to read file {filename:?}"))?;
 
-            for token in Scanner::new(&file_contents) {
-                println!("{token}");
-            }
-            println!("{}", Token::EOF);
+            let mut stdout = stdout().lock();
+            let mut stderr = stderr().lock();
+            let mut tokenizer = Tokenizer::new(&file_contents, &mut stdout, &mut stderr);
+            tokenizer.tokenize()?;
+            std::process::exit(tokenizer.code);
         }
     }
-    Ok(())
+    // Ok(())
 }
