@@ -22,7 +22,7 @@ impl Error {
 pub enum LexicalKind {
     #[error("Unexpected character: {0}")]
     UnexpectedCharacter(char),
-    #[error("Unterminated string")]
+    #[error("Unterminated string.")]
     UnterminatedString,
 }
 
@@ -73,17 +73,21 @@ impl<'a> Iterator for Scanner<'a> {
                 }
 
                 '"' => {
-                    let Some(end) = self
+                    let start_line = self.line;
+                    let end = self
                         .input
-                        .position(|(_, c)| c == '"')
-                        .inspect(|_| {
-                            self.input.next();
+                        .by_ref()
+                        .inspect(|(_, c)| {
+                            if *c == '\n' {
+                                self.line += 1;
+                            }
                         })
-                        .map(|pos| i + pos + 1)
-                    else {
-                        self.eof = true;
+                        .position(|(_, c)| c == '"')
+                        .map(|pos| i + pos + 1);
+
+                    let Some(end) = end else {
                         return Some(Err(Error::lexical(
-                            self.line,
+                            start_line,
                             LexicalKind::UnterminatedString,
                         )));
                     };
@@ -199,8 +203,44 @@ mod tests {
         );
         assert_eq!(
             next_token(),
-            Err(Error::lexical(3, LexicalKind::UnterminatedString))
+            Err(Error::lexical(4, LexicalKind::UnterminatedString))
         );
+        assert_eq!(next_token().unwrap(), Token::EOF);
+        assert!(scanner.next().is_none());
+    }
+
+    #[test]
+    fn multi_line() {
+        let multi_line = "\
+        \"\n\
+            multi\n\
+            line\n\
+            string\n\
+        \"";
+
+        let input = format!(
+            "{multi_line}
+        $\n\
+        *"
+        );
+
+        let mut scanner = Scanner::new(&input);
+        let mut next_token = || scanner.next().unwrap();
+        assert_eq!(
+            next_token().unwrap(),
+            Token::new(
+                Type::String,
+                multi_line,
+                Literal::String(&multi_line[1..multi_line.len() - 1])
+            )
+        );
+
+        assert_eq!(
+            next_token(),
+            Err(Error::lexical(6, LexicalKind::UnexpectedCharacter('$')))
+        );
+        assert_eq!(next_token().unwrap(), Token::STAR);
+        assert_eq!(next_token().unwrap(), Token::EOF);
         assert!(scanner.next().is_none());
     }
 }
