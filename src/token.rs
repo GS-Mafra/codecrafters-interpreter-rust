@@ -19,14 +19,14 @@ impl<'a> Token<'a> {
     pub const STAR: Self = Self::new_null(Type::Star, "*");
     pub const BANG: Self = Self::new_null(Type::Bang, "!");
     pub const EQUAL: Self = Self::new_null(Type::Equal, "=");
-    pub const BANG_EQUAL: Self = Self::new_null(Type::BangEqual, "!=");
-    pub const EQUAL_EQUAL: Self = Self::new_null(Type::EqualEqual, "==");
-    pub const LESS_EQUAL: Self = Self::new_null(Type::LessEqual, "<=");
-    pub const GREATER_EQUAL: Self = Self::new_null(Type::GreaterEqual, ">=");
     pub const LESS: Self = Self::new_null(Type::Less, "<");
     pub const GREATER: Self = Self::new_null(Type::Greater, ">");
     pub const SLASH: Self = Self::new_null(Type::Slash, "/");
     pub const DOT: Self = Self::new_null(Type::Dot, ".");
+    pub const BANG_EQUAL: Self = Self::new_null(Type::BangEqual, "!=");
+    pub const EQUAL_EQUAL: Self = Self::new_null(Type::EqualEqual, "==");
+    pub const LESS_EQUAL: Self = Self::new_null(Type::LessEqual, "<=");
+    pub const GREATER_EQUAL: Self = Self::new_null(Type::GreaterEqual, ">=");
     pub const EOF: Self = Self::new_null(Type::Eof, "");
 
     #[inline]
@@ -47,8 +47,6 @@ impl<'a> Token<'a> {
 #[derive(Debug, PartialEq, Eq, strum_macros::Display)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum Type {
-    Identifier,
-    String,
     LeftParen,
     RightParen,
     LeftBrace,
@@ -60,14 +58,19 @@ pub enum Type {
     Star,
     Bang,
     Equal,
-    BangEqual,
-    EqualEqual,
-    LessEqual,
-    GreaterEqual,
     Less,
     Greater,
     Slash,
     Dot,
+
+    BangEqual,
+    EqualEqual,
+    LessEqual,
+    GreaterEqual,
+
+    Identifier,
+    String,
+
     Eof,
 }
 
