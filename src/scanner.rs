@@ -1,25 +1,34 @@
-use std::{iter::Peekable, str::Chars};
+use std::{iter::Peekable, str::CharIndices};
 
 use itertools::{Itertools, PeekingNext};
 use thiserror::Error;
 
-use crate::Token;
+use crate::{Literal, Token, Type};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum Error {
-    #[error("[line {line}] Error: Unexpected character: {c}")]
-    Lexical { line: usize, c: char },
+    #[error("[line {line}] Error: {kind}")]
+    Lexical { line: usize, kind: LexicalKind },
 }
 
 impl Error {
     #[inline]
-    pub(crate) const fn lexical(line: usize, c: char) -> Self {
-        Self::Lexical { line, c }
+    pub(crate) const fn lexical(line: usize, kind: LexicalKind) -> Self {
+        Self::Lexical { line, kind }
     }
 }
 
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum LexicalKind {
+    #[error("Unexpected character: {0}")]
+    UnexpectedCharacter(char),
+    #[error("Unterminated string")]
+    UnterminatedString,
+}
+
 pub struct Scanner<'a> {
-    input: Peekable<Chars<'a>>,
+    raw: &'a str,
+    input: Peekable<CharIndices<'a>>,
     eof: bool,
     line: usize,
 }
@@ -28,7 +37,8 @@ impl<'a> Scanner<'a> {
     #[must_use]
     pub fn new(input: &'a str) -> Self {
         Self {
-            input: input.chars().peekable(),
+            raw: input, // FIXME no Chars::as_str() for peekable :( https://github.com/rust-lang/rust/issues/33881
+            input: input.char_indices().peekable(),
             eof: false,
             line: 1,
         }
@@ -43,14 +53,8 @@ impl<'a> Iterator for Scanner<'a> {
             return None;
         }
 
-        while let Some(c) = self.input.next() {
+        while let Some((i, c)) = self.input.next() {
             let token = match c {
-                '\t' | '\x0C' | '\r' | ' ' => continue,
-                '\n' => {
-                    self.line += 1;
-                    continue;
-                }
-
                 '(' => Token::LEFT_PAREN,
                 ')' => Token::RIGHT_PAREN,
                 '{' => Token::LEFT_BRACE,
@@ -62,10 +66,35 @@ impl<'a> Iterator for Scanner<'a> {
                 '*' => Token::STAR,
                 '.' => Token::DOT,
 
+                '\t' | '\x0C' | '\r' | ' ' => continue,
+                '\n' => {
+                    self.line += 1;
+                    continue;
+                }
+
+                '"' => {
+                    let Some(end) = self
+                        .input
+                        .position(|(_, c)| c == '"')
+                        .inspect(|_| {
+                            self.input.next();
+                        })
+                        .map(|pos| i + pos + 1)
+                    else {
+                        self.eof = true;
+                        return Some(Err(Error::lexical(
+                            self.line,
+                            LexicalKind::UnterminatedString,
+                        )));
+                    };
+                    let lexeme = &self.raw[i..=end];
+                    let literal = &self.raw[i + 1..end];
+                    Token::new(Type::String, lexeme, Literal::String(literal))
+                }
                 '/' => {
-                    if self.input.peeking_next(|c| *c == '/').is_some() {
+                    if self.input.peeking_next(|(_, c)| *c == '/').is_some() {
                         self.input
-                            .peeking_take_while(|c| *c != '\n')
+                            .peeking_take_while(|(_, c)| *c != '\n')
                             .for_each(|_| ());
                         continue;
                     }
@@ -73,21 +102,26 @@ impl<'a> Iterator for Scanner<'a> {
                 }
                 '!' => self
                     .input
-                    .peeking_next(|c| *c == '=')
+                    .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::BANG, |_| Token::BANG_EQUAL),
                 '=' => self
                     .input
-                    .peeking_next(|c| *c == '=')
+                    .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::EQUAL, |_| Token::EQUAL_EQUAL),
                 '<' => self
                     .input
-                    .peeking_next(|c| *c == '=')
+                    .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::LESS, |_| Token::LESS_EQUAL),
                 '>' => self
                     .input
-                    .peeking_next(|c| *c == '=')
+                    .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::GREATER, |_| Token::GREATER_EQUAL),
-                c => return Some(Err(Error::lexical(self.line, c))),
+                c => {
+                    return Some(Err(Error::lexical(
+                        self.line,
+                        LexicalKind::UnexpectedCharacter(c),
+                    )))
+                }
             };
             return Some(Ok(token));
         }
@@ -144,6 +178,29 @@ mod tests {
         assert_eq!(next_token(), Token::RIGHT_PAREN);
         assert_eq!(next_token(), Token::STAR);
         assert_eq!(next_token(), Token::EOF);
+        assert!(scanner.next().is_none());
+    }
+
+    #[test]
+    fn unterminated() {
+        let input = "\
+        *\n\
+        // comment\n\
+        \"*string*\"\n\
+        \"unterminated\n\
+        ***\n\
+        ";
+        let mut scanner = Scanner::new(input);
+        let mut next_token = || scanner.next().unwrap();
+        assert_eq!(next_token().unwrap(), Token::STAR);
+        assert_eq!(
+            next_token().unwrap(),
+            Token::new(Type::String, "\"*string*\"", Literal::String("*string*"))
+        );
+        assert_eq!(
+            next_token(),
+            Err(Error::lexical(3, LexicalKind::UnterminatedString))
+        );
         assert!(scanner.next().is_none());
     }
 }

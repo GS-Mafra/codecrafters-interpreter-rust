@@ -44,7 +44,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{scanner, Token};
+    use crate::{scanner::{Error, LexicalKind}, Token};
 
     use pretty_assertions::assert_eq;
 
@@ -85,8 +85,8 @@ mod tests {
         let expected = {
             let mut buf = Vec::new();
             let errors = [
-                scanner::Error::lexical(1, '$'),
-                scanner::Error::lexical(2, '#'),
+                Error::lexical(1, LexicalKind::UnexpectedCharacter('$')),
+                Error::lexical(2, LexicalKind::UnexpectedCharacter('#')),
             ];
             for error in errors {
                 writeln!(buf, "{error}").unwrap();
@@ -129,8 +129,8 @@ mod tests {
             let expected_err = {
                 let mut buf = Vec::new();
                 let errors = [
-                    scanner::Error::lexical(3, '$'),
-                    scanner::Error::lexical(5, '#'),
+                    Error::lexical(3, LexicalKind::UnexpectedCharacter('$')),
+                    Error::lexical(5, LexicalKind::UnexpectedCharacter('#')),
                 ];
                 for error in errors {
                     writeln!(buf, "{error}").unwrap();
