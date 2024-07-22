@@ -276,4 +276,20 @@ mod tests {
         assert_eq!(next_token().unwrap(), Token::EOF);
         assert!(scanner.next().is_none());
     }
+
+    #[test]
+    fn num() {
+        let input = "\
+        1234.1234.1234.\n\
+        ";
+
+        let mut scanner = Scanner::new(input);
+        let mut next_token = || scanner.next().unwrap().unwrap();
+
+        assert_eq!(next_token(), Token::new(Type::Number, "1234.1234", Literal::Number(1234.1234_f64)));
+        assert_eq!(next_token(), Token::DOT);
+        assert_eq!(next_token(), Token::new(Type::Number, "1234", Literal::Number(1234_f64)));
+        assert_eq!(next_token(), Token::DOT);
+        assert_eq!(next_token(), Token::EOF);
+    }
 }
