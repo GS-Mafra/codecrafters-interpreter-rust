@@ -26,6 +26,7 @@ thiserror = "1.0.63" # error handling
 clap = { version = "4.5.9", features = ["derive"] }
 strum_macros = "0.26.4"
 itertools = { version = "0.13.0", default-features = false }
+phf = { version = "0.11.2", features = ["macros"] }
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

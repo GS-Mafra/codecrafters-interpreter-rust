@@ -153,6 +153,17 @@ impl<'a> Iterator for Scanner<'a> {
                     .chars
                     .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::GREATER, |_| Token::GREATER_EQUAL),
+                'a'..='z' | 'A'..='Z' | '_' => {
+                    let end = i + self
+                        .chars
+                        .peeking_take_while(|(_, c)| c.is_ascii_alphanumeric() || *c == '_')
+                        .count();
+                    let identifier = &self.raw[i..=end];
+                    Token::reserved()
+                        .get(identifier)
+                        .copied()
+                        .unwrap_or_else(|| Token::new_null(Type::Identifier, identifier))
+                }
                 c => {
                     return Some(Err(Error::lexical(
                         self.line,
@@ -286,10 +297,78 @@ mod tests {
         let mut scanner = Scanner::new(input);
         let mut next_token = || scanner.next().unwrap().unwrap();
 
-        assert_eq!(next_token(), Token::new(Type::Number, "1234.1234", Literal::Number(1234.1234_f64)));
+        assert_eq!(
+            next_token(),
+            Token::new(Type::Number, "1234.1234", Literal::Number(1234.1234_f64))
+        );
         assert_eq!(next_token(), Token::DOT);
-        assert_eq!(next_token(), Token::new(Type::Number, "1234", Literal::Number(1234_f64)));
+        assert_eq!(
+            next_token(),
+            Token::new(Type::Number, "1234", Literal::Number(1234_f64))
+        );
         assert_eq!(next_token(), Token::DOT);
+        assert_eq!(next_token(), Token::EOF);
+    }
+
+    #[test]
+    fn identifiers() {
+        let input = "\
+        andy formless fo _ _123 _abc ab123\n\
+        abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_
+        ";
+
+        let mut scanner = Scanner::new(input);
+        let mut next_token = || scanner.next().unwrap().unwrap();
+
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "andy"));
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "formless"));
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "fo"));
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "_"));
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "_123"));
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "_abc"));
+        assert_eq!(next_token(), Token::new_null(Type::Identifier, "ab123"));
+        assert_eq!(
+            next_token(),
+            Token::new_null(
+                Type::Identifier,
+                "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890_"
+            )
+        );
+        assert_eq!(next_token(), Token::EOF);
+    }
+
+    #[test]
+    fn reserved() {
+        let input = "and class else false for fun if nil or print return super this true var while";
+        assert_eq!(
+            Token::reserved().len(),
+            input.split_ascii_whitespace().count()
+        );
+
+        let mut scanner = Scanner::new(input);
+        let mut next_token = || scanner.next().unwrap().unwrap();
+        let reserved = |token: &str| {
+            Token::reserved()
+                .get(&token.to_ascii_lowercase())
+                .copied()
+                .unwrap_or_else(|| panic!("not reserved: \"{token}\""))
+        };
+        assert_eq!(reserved(next_token().lexeme), Token::AND);
+        assert_eq!(reserved(next_token().lexeme), Token::CLASS);
+        assert_eq!(reserved(next_token().lexeme), Token::ELSE);
+        assert_eq!(reserved(next_token().lexeme), Token::FALSE);
+        assert_eq!(reserved(next_token().lexeme), Token::FOR);
+        assert_eq!(reserved(next_token().lexeme), Token::FUN);
+        assert_eq!(reserved(next_token().lexeme), Token::IF);
+        assert_eq!(reserved(next_token().lexeme), Token::NIL);
+        assert_eq!(reserved(next_token().lexeme), Token::OR);
+        assert_eq!(reserved(next_token().lexeme), Token::PRINT);
+        assert_eq!(reserved(next_token().lexeme), Token::RETURN);
+        assert_eq!(reserved(next_token().lexeme), Token::SUPER);
+        assert_eq!(reserved(next_token().lexeme), Token::THIS);
+        assert_eq!(reserved(next_token().lexeme), Token::TRUE);
+        assert_eq!(reserved(next_token().lexeme), Token::VAR);
+        assert_eq!(reserved(next_token().lexeme), Token::WHILE);
         assert_eq!(next_token(), Token::EOF);
     }
 }

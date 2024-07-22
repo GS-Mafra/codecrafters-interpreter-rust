@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Token<'a> {
     pub(crate) ty: Type,
     pub(crate) lexeme: &'a str,
@@ -23,10 +23,29 @@ impl<'a> Token<'a> {
     pub const GREATER: Self = Self::new_null(Type::Greater, ">");
     pub const SLASH: Self = Self::new_null(Type::Slash, "/");
     pub const DOT: Self = Self::new_null(Type::Dot, ".");
+
     pub const BANG_EQUAL: Self = Self::new_null(Type::BangEqual, "!=");
     pub const EQUAL_EQUAL: Self = Self::new_null(Type::EqualEqual, "==");
     pub const LESS_EQUAL: Self = Self::new_null(Type::LessEqual, "<=");
     pub const GREATER_EQUAL: Self = Self::new_null(Type::GreaterEqual, ">=");
+
+    pub const AND: Self = Self::new_null(Type::And, "AND");
+    pub const CLASS: Self = Self::new_null(Type::Class, "CLASS");
+    pub const ELSE: Self = Self::new_null(Type::Else, "ELSE");
+    pub const FALSE: Self = Self::new_null(Type::False, "FALSE");
+    pub const FUN: Self = Self::new_null(Type::Fun, "FUN");
+    pub const FOR: Self = Self::new_null(Type::For, "FOR");
+    pub const IF: Self = Self::new_null(Type::If, "IF");
+    pub const NIL: Self = Self::new_null(Type::Nil, "NIL");
+    pub const OR: Self = Self::new_null(Type::Or, "OR");
+    pub const PRINT: Self = Self::new_null(Type::Print, "PRINT");
+    pub const RETURN: Self = Self::new_null(Type::Return, "RETURN");
+    pub const SUPER: Self = Self::new_null(Type::Super, "SUPER");
+    pub const THIS: Self = Self::new_null(Type::This, "THIS");
+    pub const TRUE: Self = Self::new_null(Type::True, "TRUE");
+    pub const VAR: Self = Self::new_null(Type::Var, "VAR");
+    pub const WHILE: Self = Self::new_null(Type::While, "WHILE");
+
     pub const EOF: Self = Self::new_null(Type::Eof, "");
 
     #[inline]
@@ -42,9 +61,32 @@ impl<'a> Token<'a> {
     pub(crate) const fn new_null(ty: Type, lexeme: &'a str) -> Self {
         Self::new(ty, lexeme, Literal::Null)
     }
+
+    #[inline]
+    pub(crate) fn reserved() -> &'static phf::Map<&'static str, Self> {
+        static RESERVED: phf::Map<&'static str, Token> = phf::phf_map! {
+            "and" => Token::AND,
+            "class" => Token::CLASS,
+            "else" => Token::ELSE,
+            "false" => Token::FALSE,
+            "for" => Token::FOR,
+            "fun" => Token::FUN,
+            "if" => Token::IF,
+            "nil" => Token::NIL,
+            "or" => Token::OR,
+            "print" => Token::PRINT,
+            "return" => Token::RETURN,
+            "super" => Token::SUPER,
+            "this" => Token::THIS,
+            "true" => Token::TRUE,
+            "var" => Token::VAR,
+            "while" => Token::WHILE,
+        };
+        &RESERVED
+    }
 }
 
-#[derive(Debug, PartialEq, Eq, strum_macros::Display)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, strum_macros::Display)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum Type {
     LeftParen,
@@ -72,10 +114,27 @@ pub enum Type {
     String,
     Number,
 
+    And,
+    Class,
+    Else,
+    False,
+    Fun,
+    For,
+    If,
+    Nil,
+    Or,
+    Print,
+    Return,
+    Super,
+    This,
+    True,
+    Var,
+    While,
+
     Eof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Literal<'a> {
     Null,
     String(&'a str),
