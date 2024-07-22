@@ -44,7 +44,10 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{scanner::{Error, LexicalKind}, Token};
+    use crate::{
+        scanner::{Error, LexicalKind},
+        Token,
+    };
 
     use pretty_assertions::assert_eq;
 

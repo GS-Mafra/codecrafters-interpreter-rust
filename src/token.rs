@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct Token<'a> {
     pub(crate) ty: Type,
     pub(crate) lexeme: &'a str,
@@ -70,15 +70,16 @@ pub enum Type {
 
     Identifier,
     String,
+    Number,
 
     Eof,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Literal<'a> {
     Null,
     String(&'a str),
-    Number(i64), // FIXME
+    Number(f64),
 }
 
 impl<'a> Display for Token<'a> {

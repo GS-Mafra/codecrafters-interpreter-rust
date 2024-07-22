@@ -28,7 +28,7 @@ pub enum LexicalKind {
 
 pub struct Scanner<'a> {
     raw: &'a str,
-    input: Peekable<CharIndices<'a>>,
+    chars: Peekable<CharIndices<'a>>,
     eof: bool,
     line: usize,
 }
@@ -38,10 +38,63 @@ impl<'a> Scanner<'a> {
     pub fn new(input: &'a str) -> Self {
         Self {
             raw: input, // FIXME no Chars::as_str() for peekable :( https://github.com/rust-lang/rust/issues/33881
-            input: input.char_indices().peekable(),
+            chars: input.char_indices().peekable(),
             eof: false,
             line: 1,
         }
+    }
+
+    fn string(&mut self, start: usize) -> Result<Token<'a>, Error> {
+        let start_line = self.line;
+        let end = self
+            .chars
+            .by_ref()
+            .inspect(|(_, c)| {
+                if *c == '\n' {
+                    self.line += 1;
+                }
+            })
+            .position(|(_, c)| c == '"')
+            .map(|pos| start + pos + 1);
+
+        let Some(end) = end else {
+            return Err(Error::lexical(start_line, LexicalKind::UnterminatedString));
+        };
+        let lexeme = &self.raw[start..=end];
+        let literal = &self.raw[start + 1..end];
+        Ok(Token::new(Type::String, lexeme, Literal::String(literal)))
+    }
+
+    fn num(&mut self, start: usize) -> Token<'a> {
+        let mut seen_dot = false;
+        let mut end = start;
+
+        while let Some((_, c)) = self.chars.peek() {
+            match c {
+                c if c.is_ascii_digit() => (),
+                '.' => {
+                    let is_next_digit = self
+                        .raw
+                        .as_bytes()
+                        .get(end + 2)
+                        .is_some_and(u8::is_ascii_digit);
+                    if seen_dot || !is_next_digit {
+                        break;
+                    }
+                    seen_dot = true;
+                }
+                _ => break,
+            }
+            self.chars.next();
+            end += 1;
+        }
+
+        let num = &self.raw[start..=end];
+        Token::new(
+            Type::Number,
+            num,
+            Literal::Number(num.parse::<f64>().unwrap()),
+        )
     }
 }
 
@@ -53,7 +106,7 @@ impl<'a> Iterator for Scanner<'a> {
             return None;
         }
 
-        while let Some((i, c)) = self.input.next() {
+        while let Some((i, c)) = self.chars.next() {
             let token = match c {
                 '(' => Token::LEFT_PAREN,
                 ')' => Token::RIGHT_PAREN,
@@ -72,32 +125,12 @@ impl<'a> Iterator for Scanner<'a> {
                     continue;
                 }
 
-                '"' => {
-                    let start_line = self.line;
-                    let end = self
-                        .input
-                        .by_ref()
-                        .inspect(|(_, c)| {
-                            if *c == '\n' {
-                                self.line += 1;
-                            }
-                        })
-                        .position(|(_, c)| c == '"')
-                        .map(|pos| i + pos + 1);
+                c if c.is_ascii_digit() => return Some(Ok(self.num(i))),
+                '"' => return Some(self.string(i)),
 
-                    let Some(end) = end else {
-                        return Some(Err(Error::lexical(
-                            start_line,
-                            LexicalKind::UnterminatedString,
-                        )));
-                    };
-                    let lexeme = &self.raw[i..=end];
-                    let literal = &self.raw[i + 1..end];
-                    Token::new(Type::String, lexeme, Literal::String(literal))
-                }
                 '/' => {
-                    if self.input.peeking_next(|(_, c)| *c == '/').is_some() {
-                        self.input
+                    if self.chars.peeking_next(|(_, c)| *c == '/').is_some() {
+                        self.chars
                             .peeking_take_while(|(_, c)| *c != '\n')
                             .for_each(|_| ());
                         continue;
@@ -105,19 +138,19 @@ impl<'a> Iterator for Scanner<'a> {
                     Token::SLASH
                 }
                 '!' => self
-                    .input
+                    .chars
                     .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::BANG, |_| Token::BANG_EQUAL),
                 '=' => self
-                    .input
+                    .chars
                     .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::EQUAL, |_| Token::EQUAL_EQUAL),
                 '<' => self
-                    .input
+                    .chars
                     .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::LESS, |_| Token::LESS_EQUAL),
                 '>' => self
-                    .input
+                    .chars
                     .peeking_next(|(_, c)| *c == '=')
                     .map_or(Token::GREATER, |_| Token::GREATER_EQUAL),
                 c => {
