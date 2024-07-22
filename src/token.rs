@@ -93,7 +93,7 @@ impl<'a> Display for Literal<'a> {
         match self {
             Self::Null => write!(f, "null"),
             Self::String(x) => x.fmt(f),
-            Self::Number(x) => x.fmt(f),
+            Self::Number(x) => std::fmt::Debug::fmt(x, f),
         }
     }
 }
