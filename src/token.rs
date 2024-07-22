@@ -29,22 +29,22 @@ impl<'a> Token<'a> {
     pub const LESS_EQUAL: Self = Self::new_null(Type::LessEqual, "<=");
     pub const GREATER_EQUAL: Self = Self::new_null(Type::GreaterEqual, ">=");
 
-    pub const AND: Self = Self::new_null(Type::And, "AND");
-    pub const CLASS: Self = Self::new_null(Type::Class, "CLASS");
-    pub const ELSE: Self = Self::new_null(Type::Else, "ELSE");
-    pub const FALSE: Self = Self::new_null(Type::False, "FALSE");
-    pub const FUN: Self = Self::new_null(Type::Fun, "FUN");
-    pub const FOR: Self = Self::new_null(Type::For, "FOR");
-    pub const IF: Self = Self::new_null(Type::If, "IF");
-    pub const NIL: Self = Self::new_null(Type::Nil, "NIL");
-    pub const OR: Self = Self::new_null(Type::Or, "OR");
-    pub const PRINT: Self = Self::new_null(Type::Print, "PRINT");
-    pub const RETURN: Self = Self::new_null(Type::Return, "RETURN");
-    pub const SUPER: Self = Self::new_null(Type::Super, "SUPER");
-    pub const THIS: Self = Self::new_null(Type::This, "THIS");
-    pub const TRUE: Self = Self::new_null(Type::True, "TRUE");
-    pub const VAR: Self = Self::new_null(Type::Var, "VAR");
-    pub const WHILE: Self = Self::new_null(Type::While, "WHILE");
+    pub const AND: Self = Self::new_null(Type::And, "and");
+    pub const CLASS: Self = Self::new_null(Type::Class, "class");
+    pub const ELSE: Self = Self::new_null(Type::Else, "else");
+    pub const FALSE: Self = Self::new_null(Type::False, "false");
+    pub const FUN: Self = Self::new_null(Type::Fun, "fun");
+    pub const FOR: Self = Self::new_null(Type::For, "for");
+    pub const IF: Self = Self::new_null(Type::If, "if");
+    pub const NIL: Self = Self::new_null(Type::Nil, "nil");
+    pub const OR: Self = Self::new_null(Type::Or, "or");
+    pub const PRINT: Self = Self::new_null(Type::Print, "print");
+    pub const RETURN: Self = Self::new_null(Type::Return, "return");
+    pub const SUPER: Self = Self::new_null(Type::Super, "super");
+    pub const THIS: Self = Self::new_null(Type::This, "this");
+    pub const TRUE: Self = Self::new_null(Type::True, "true");
+    pub const VAR: Self = Self::new_null(Type::Var, "var");
+    pub const WHILE: Self = Self::new_null(Type::While, "while");
 
     pub const EOF: Self = Self::new_null(Type::Eof, "");
 
