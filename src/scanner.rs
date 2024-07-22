@@ -349,7 +349,7 @@ mod tests {
         let mut next_token = || scanner.next().unwrap().unwrap();
         let reserved = |token: &str| {
             Token::reserved()
-                .get(&token.to_ascii_lowercase())
+                .get(token)
                 .copied()
                 .unwrap_or_else(|| panic!("not reserved: \"{token}\""))
         };
